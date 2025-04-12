@@ -31,17 +31,11 @@ from isaaclab.actuators import ImplicitActuatorCfg
 def design_scene() -> tuple[dict, list[list[float]]]:
     """Designs the scene."""
     # Ground-plane
-    cfg_ground = sim_utils.GroundPlaneCfg()
-    cfg_ground.func("/World/defaultGroundPlane", cfg_ground)
-
+    cfg = sim_utils.GroundPlaneCfg()
+    cfg.func("/World/defaultGroundPlane", cfg)
     # Lights
-    cfg_light_distant = sim_utils.DistantLightCfg(
-        intensity=3000.0,
-        color=(0.75, 0.75, 0.75),
-    )
-    cfg_light_distant.func("/World/lightDistant", cfg_light_distant, translation=(1, 0, 10))
-    cfg_light_dome = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.8, 0.8, 0.8))
-    cfg_light_dome.func("/World/Light", cfg_light_dome)
+    cfg = sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75))
+    cfg.func("/World/Light", cfg)
 
     # Create separate groups called "Origin1", "Origin2"
     # Each group will have a robot in it
@@ -150,20 +144,14 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, Articula
         efforts = torch.randn_like(robot.data.joint_pos) * 5.0
         # -- apply action to the robot
         robot.set_joint_effort_target(efforts)
-        
         # -- write data to sim
-        for object in entities.values():
-            object.write_data_to_sim()
-            
+        robot.write_data_to_sim()
         # Perform step
         sim.step()
-        
         # Increment counter
         count += 1
-        
         # Update buffers
-        for object in entities.values():
-            object.update(sim_dt)
+        robot.update(sim_dt)
 
 
 def main():
@@ -172,7 +160,7 @@ def main():
     sim_cfg = sim_utils.SimulationCfg(device=args_cli.device)
     sim = SimulationContext(sim_cfg)
     # Set main camera
-    sim.set_camera_view(eye=[10.0, 0.0, 10.0], target=[0.0, 0.0, 0.0])
+    sim.set_camera_view([2.5, 0.0, 4.0], [0.0, 0.0, 2.0])
     # Design scene
     scene_entities, scene_origins = design_scene()
     scene_origins = torch.tensor(scene_origins, device=sim.device)
