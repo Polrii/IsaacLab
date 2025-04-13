@@ -6,7 +6,7 @@ from isaaclab.app import AppLauncher
 
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Example project where an AI controls a car.")
-parser.add_argument("--num_envs", type=int, default=2, help="Number of environments to spawn.")
+parser.add_argument("--num_envs", type=int, default=16, help="Number of environments to spawn.")
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
 # parse the arguments
@@ -55,28 +55,28 @@ car_cfg = ArticulationCfg(
     actuators={
         "front_left_actuator": ImplicitActuatorCfg(
             joint_names_expr=["FrontLeft"],
-            effort_limit=1200.0,
+            effort_limit_sim=1200.0,
             velocity_limit=None,
             stiffness=0.0,
             damping=10.0,
         ),
         "front_right_actuator": ImplicitActuatorCfg(
             joint_names_expr=["FrontRight"],
-            effort_limit=1200.0,
+            effort_limit_sim=1200.0,
             velocity_limit=None,
             stiffness=0.0,
             damping=10.0,
         ),
         "back_left_actuator": ImplicitActuatorCfg(
             joint_names_expr=["BackLeft"],
-            effort_limit=1200.0,
+            effort_limit_sim=1200.0,
             velocity_limit=None,
             stiffness=0.0,
             damping=10.0,
         ),
         "back_right_actuator": ImplicitActuatorCfg(
             joint_names_expr=["BackRight"],
-            effort_limit=1200.0,
+            effort_limit_sim=1200.0,
             velocity_limit=None,
             stiffness=0.0,
             damping=10.0,
@@ -111,6 +111,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # Define simulation stepping
     sim_dt = sim.get_physics_dt()
     count = 0
+    max_angular_velocity = 16320.0
+    
     # Simulation loop
     while simulation_app.is_running():
         # Reset
@@ -125,21 +127,28 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             root_state[:, :3] += scene.env_origins
             robot.write_root_pose_to_sim(root_state[:, :7])
             robot.write_root_velocity_to_sim(root_state[:, 7:])
-            # set joint positions with some noise
-            joint_pos, joint_vel = robot.data.default_joint_pos.clone(), robot.data.default_joint_vel.clone()
-            joint_vel += torch.rand_like(joint_vel) * 1000.0
-            print(f"[DATA]: Joint pos: {joint_pos}, Joint vel: {joint_vel}")
-            robot.write_joint_state_to_sim(joint_pos, joint_vel)
+            
+            # Get joint velocities
+            joint_vel = robot.data.default_joint_vel.clone()
+            
+            # Make a copy of joint_vel for a target
+            joint_vel_target = joint_vel.clone()
+            
+            # Assign random angular velocities to each wheel in each environment
+            for env_idx in range(scene.num_envs):
+                for wheel in ["FrontLeft", "FrontRight", "BackLeft", "BackRight"]:
+                    joint_name_idx = robot.data.joint_names.index(wheel)
+                    joint_vel_target[env_idx, joint_name_idx] = torch.rand(1).item() * 2 * max_angular_velocity - max_angular_velocity
+            
+            print(f"[DATA]: Joint velocity targets: {joint_vel_target}")
+            robot.set_joint_velocity_target(joint_vel_target)
+
             # clear internal buffers
             scene.reset()
             print("[INFO]: Resetting robot state...")
-        # Apply random action
-        # -- generate random joint efforts
-        efforts = torch.randn_like(robot.data.joint_pos) * 5.0
-        # -- apply action to the robot
-        robot.set_joint_effort_target(efforts)
+            
         
-        # -- write data to sim
+        # Wite data to sim
         scene.write_data_to_sim()
             
         # Perform step
@@ -158,7 +167,7 @@ def main():
     sim_cfg = sim_utils.SimulationCfg(device=args_cli.device)
     sim = SimulationContext(sim_cfg)
     # Set main camera
-    sim.set_camera_view(eye=[10.0, 0.0, 10.0], target=[0.0, 0.0, 0.0])
+    sim.set_camera_view(eye=[40.0, 0.0, 50.0], target=[0.0, 0.0, 0.0])
     # Design scene
     scene_cfg = CarSceneCfg(num_envs=args_cli.num_envs, env_spacing=5.0)
     scene = InteractiveScene(scene_cfg)
