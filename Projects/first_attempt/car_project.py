@@ -1,12 +1,11 @@
 """Launch Isaac Sim Simulator first."""
 
-
 import argparse
 
 from isaaclab.app import AppLauncher
 
 # add argparse arguments
-parser = argparse.ArgumentParser(description="Tutorial on spawning and interacting with an articulation.")
+parser = argparse.ArgumentParser(description="Example project where an AI controls a car.")
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
 # parse the arguments
@@ -15,6 +14,7 @@ args_cli = parser.parse_args()
 # launch omniverse app
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
+
 
 """Rest everything follows."""
 
@@ -28,24 +28,21 @@ from isaaclab.sim import SimulationContext
 from isaaclab.actuators import ImplicitActuatorCfg
 
 
+"""Designs the scene."""
 def design_scene() -> tuple[dict, list[list[float]]]:
-    """Designs the scene."""
     # Ground-plane
     cfg_ground = sim_utils.GroundPlaneCfg()
     cfg_ground.func("/World/defaultGroundPlane", cfg_ground)
 
     # Lights
-    cfg_light_distant = sim_utils.DistantLightCfg(
-        intensity=3000.0,
-        color=(0.75, 0.75, 0.75),
-    )
+    cfg_light_distant = sim_utils.DistantLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75))
     cfg_light_distant.func("/World/lightDistant", cfg_light_distant, translation=(1, 0, 10))
     cfg_light_dome = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.8, 0.8, 0.8))
     cfg_light_dome.func("/World/Light", cfg_light_dome)
 
     # Create separate groups called "Origin1", "Origin2"
     # Each group will have a robot in it
-    origins = [[0.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]
+    origins = [[0.0, 0.0, 0.0], [0.0, 5.0, 0.0]]
     # Origin 1
     prim_utils.create_prim("/World/Origin1", "Xform", translation=origins[0])
     # Origin 2
@@ -76,29 +73,29 @@ def design_scene() -> tuple[dict, list[list[float]]]:
         actuators={
             "front_left_actuator": ImplicitActuatorCfg(
                 joint_names_expr=["FrontLeft"],
-                effort_limit=400.0,
-                velocity_limit=100.0,
+                effort_limit=1200.0,
+                velocity_limit=None,
                 stiffness=0.0,
                 damping=10.0,
             ),
             "front_right_actuator": ImplicitActuatorCfg(
                 joint_names_expr=["FrontRight"],
-                effort_limit=400.0,
-                velocity_limit=100.0,
+                effort_limit=1200.0,
+                velocity_limit=None,
                 stiffness=0.0,
                 damping=10.0,
             ),
             "back_left_actuator": ImplicitActuatorCfg(
                 joint_names_expr=["BackLeft"],
-                effort_limit=400.0,
-                velocity_limit=100.0,
+                effort_limit=1200.0,
+                velocity_limit=None,
                 stiffness=0.0,
                 damping=10.0,
             ),
             "back_right_actuator": ImplicitActuatorCfg(
                 joint_names_expr=["BackRight"],
-                effort_limit=400.0,
-                velocity_limit=100.0,
+                effort_limit=1200.0,
+                velocity_limit=None,
                 stiffness=0.0,
                 damping=10.0,
             ),
