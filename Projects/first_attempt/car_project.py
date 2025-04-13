@@ -37,7 +37,7 @@ car_cfg = ArticulationCfg(
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             rigid_body_enabled=True,
             max_linear_velocity=1000.0,
-            max_angular_velocity=16320.0,
+            max_angular_velocity=16320.0, # Deg/s
             max_depenetration_velocity=100.0,
             enable_gyroscopic_forces=True,
         ),
@@ -58,28 +58,28 @@ car_cfg = ArticulationCfg(
             effort_limit_sim=1200.0,
             velocity_limit=None,
             stiffness=0.0,
-            damping=10.0,
+            damping=100.0,
         ),
         "front_right_actuator": ImplicitActuatorCfg(
             joint_names_expr=["FrontRight"],
             effort_limit_sim=1200.0,
             velocity_limit=None,
             stiffness=0.0,
-            damping=10.0,
+            damping=100.0,
         ),
         "back_left_actuator": ImplicitActuatorCfg(
             joint_names_expr=["BackLeft"],
             effort_limit_sim=1200.0,
             velocity_limit=None,
             stiffness=0.0,
-            damping=10.0,
+            damping=100.0,
         ),
         "back_right_actuator": ImplicitActuatorCfg(
             joint_names_expr=["BackRight"],
             effort_limit_sim=1200.0,
             velocity_limit=None,
             stiffness=0.0,
-            damping=10.0,
+            damping=100.0,
         ),
     },
 )
@@ -111,7 +111,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # Define simulation stepping
     sim_dt = sim.get_physics_dt()
     count = 0
-    max_angular_velocity = 16320.0
+    max_angular_velocity = 285.0 # Rad/s
     
     # Simulation loop
     while simulation_app.is_running():
@@ -146,7 +146,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             # clear internal buffers
             scene.reset()
             print("[INFO]: Resetting robot state...")
-            
+        
+        """
+        # Get the joint velocities
+        current_joint_velocities = robot.data.joint_vel.clone()
+        print(f"[DATA]: Current joint velocities: {current_joint_velocities}") # Rad/s
+        """
         
         # Wite data to sim
         scene.write_data_to_sim()
@@ -159,7 +164,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         
         # Update buffers
         scene.update(sim_dt)
-
 
 def main():
     """Main function."""
