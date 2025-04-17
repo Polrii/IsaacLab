@@ -74,6 +74,10 @@ from isaaclab.envs import (
     ManagerBasedRLEnvCfg,
     multi_agent_to_single_agent,
 )
+
+sys.path.append("C:/Users/mcpek/IsaacLab/Projects/first_attempt")
+import car_driver 
+
 from isaaclab.utils.assets import retrieve_file_path
 from isaaclab.utils.dict import print_dict
 from isaaclab.utils.io import dump_pickle, dump_yaml

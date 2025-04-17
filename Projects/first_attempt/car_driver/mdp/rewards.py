@@ -17,32 +17,25 @@ if TYPE_CHECKING:
 
 def speed_reward(
     env: ManagerBasedRLEnv,
-    threshold: float,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """Reward for moving faster."""
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
-    # wrap the joint positions to (-pi, pi)
+    # compute the speed in the xy-plane
     joint_vel = asset.data.joint_vel[:, asset_cfg.joint_ids]
     # compute the reward
-    return torch.sum(torch.sqrt(joint_vel), dim=1)
+    return torch.sum(torch.sqrt(torch.abs(joint_vel)))
 
 
-def travelled_distance(
+def travelled_distance_penalty(
     env: ManagerBasedRLEnv, 
-    velocity: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """Penalty for travelling a distance."""
-    return -velocity * env.step_dt
-
-
-
-
-
-
-
-
+    asset: Articulation = env.scene[asset_cfg.name]
+    velocity = torch.norm(asset.data.root_lin_vel_b[:, :2], dim=1)  # xy-plane velocity
+    return (-torch.abs(velocity) * env.step_dt)
 
 
 

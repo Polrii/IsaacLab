@@ -12,7 +12,9 @@ from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.utils import configclass
 
-import isaaclab_tasks.manager_based.classic.cartpole.mdp as mdp
+import sys
+sys.path.append("C:/Users/mcpek/IsaacLab/Projects/first_attempt")
+import car_driver.mdp as mdp
 
 import torch
 
@@ -91,7 +93,7 @@ class CarDriverSceneCfg(InteractiveSceneCfg):
     """Configuration for a car driver scene."""
 
     # Ground-plane
-    ground = AssetBaseCfg(prim_path="/World/GroundPlane", spawn=sim_utils.GroundPlaneCfg())
+    ground = AssetBaseCfg(prim_path="/World/GroundPlane", spawn=sim_utils.GroundPlaneCfg(size=(10000, 10000)))
 
     # Lights
     distant_light = AssetBaseCfg(
@@ -128,9 +130,9 @@ class ObservationsCfg:
         joint_vel = ObsTerm(func=mdp.joint_vel)           # velocity of each wheel
         root_lin_vel_w = ObsTerm(func=mdp.root_lin_vel_w) # linear velocity of the car
         root_ang_vel_w = ObsTerm(func=mdp.root_ang_vel_w) # angular velocity of the car
-        root_pos = ObsTerm(func=mdp.root_pos)             # position of the car
+        root_pos = ObsTerm(func=mdp.root_pos_w)             # position of the car
         root_quat_w = ObsTerm(func=mdp.root_quat_w)       # quaternion of the car (orientation)
-        base_angle_to_target = ObsTerm(func=mdp.base_angle_to_target, params={"target_pos": (1000.0, 0.0, 0.0)})
+        base_angle_to_target = ObsTerm(func=mdp.base_angle_to_target, params={"target_pos": (0.0, 0.0, 0.0)})
 
 
 
@@ -169,12 +171,12 @@ class EventCfg:
 @configclass
 class RewardsCfg:
     """Reward terms for the MDP."""
-
+    
     # (1) Reward for moving forward
     progress = RewTerm(
         func=mdp.progress_reward, 
         weight=1.0, 
-        params={"target_pos": (1000.0, 0.0, 0.0)}
+        params={"target_pos": (0.0, 0.0, 0.0)}
     )
     # (2) Reward for moving fast
     speed = RewTerm(
@@ -191,7 +193,7 @@ class RewardsCfg:
     travel_penalty = RewTerm(
         func=mdp.travelled_distance_penalty,
         weight=1.0,
-        params={"velocity": mdp.root_lin_vel_w}
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["FrontLeft", "FrontRight", "BackLeft", "BackRight"])}
     )
     # (5) Accomplishement reward
     terminating = RewTerm(func=mdp.is_terminated, weight=2.0)
@@ -211,8 +213,8 @@ class TerminationsCfg:
 
 
 @configclass
-class CartpoleEnvCfg(ManagerBasedRLEnvCfg):
-    """Configuration for the cartpole environment."""
+class CarDriverEnvCfg(ManagerBasedRLEnvCfg):
+    """Configuration for the car driver environment."""
 
     # Scene settings
     scene: CarDriverSceneCfg = CarDriverSceneCfg(num_envs=4096, env_spacing=10.0)
@@ -232,6 +234,7 @@ class CartpoleEnvCfg(ManagerBasedRLEnvCfg):
         self.episode_length_s = 15.0 # episode length in seconds
         # viewer settings
         self.viewer.eye = (40.0, 0.0, 50.0)
+        self.viewer.target = (0.0, 0.0, 0.0)
         # simulation settings
-        self.sim.dt = 1 / 120
+        self.sim.dt = 1 / 240
         self.sim.render_interval = self.decimation

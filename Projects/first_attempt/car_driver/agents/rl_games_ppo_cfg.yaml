@@ -1,5 +1,5 @@
 params:
-  seed: -1
+  seed: 42
 
   # environment wrapper clipping
   env:
@@ -68,7 +68,8 @@ params:
     truncate_grads: True
     e_clip: 0.2
     horizon_length: 16
-    minibatch_size: 16384
+    batch_size: 1024
+    minibatch_size: 128
     mini_epochs: 4
     critic_coef: 2
     clip_value: True
