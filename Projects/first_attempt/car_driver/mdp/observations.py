@@ -16,6 +16,19 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
 
 
+def distance_to_objective(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Calculate the distance between the car's position and the objective's position."""
+    # Extract the car's position
+    car_positions = env.scene[asset_cfg.name].data.root_pos_w[:, :2]  # (x, y)
+    # Extract the objective positions
+    objective_positions = env.scene["objective_cones"].data.root_pos_w[:, :2]  # (x, y)
+    # Compute the Euclidean distance
+    distances = torch.norm(car_positions - objective_positions, dim=1, keepdim=True)
+    return distances
+
+
+
+
 def base_yaw_roll(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Yaw and roll of the base in the simulation world frame."""
     # extract the used quantities (to enable type-hinting)

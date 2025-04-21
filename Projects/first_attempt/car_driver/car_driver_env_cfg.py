@@ -1,7 +1,7 @@
 import math
 
 import isaaclab.sim as sim_utils
-from isaaclab.assets import ArticulationCfg, AssetBaseCfg
+from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
@@ -9,19 +9,12 @@ from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
-from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.utils import configclass
 
 import sys
 sys.path.append("C:/Users/mcpek/IsaacLab/Projects/first_attempt")
 import car_driver.mdp as mdp
 
-import torch
-
-import isaaclab.sim as sim_utils
-from isaaclab.assets import ArticulationCfg, AssetBaseCfg
-from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
-from isaaclab.sim import SimulationContext
+from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.utils import configclass
 
@@ -93,7 +86,12 @@ class CarDriverSceneCfg(InteractiveSceneCfg):
     """Configuration for a car driver scene."""
 
     # Ground-plane
-    ground = AssetBaseCfg(prim_path="/World/GroundPlane", spawn=sim_utils.GroundPlaneCfg(size=(10000, 10000)))
+    ground = AssetBaseCfg(
+        prim_path="/World/GroundPlane", 
+        spawn=sim_utils.GroundPlaneCfg(
+            size=(1000, 1000),
+        )
+    )
 
     # Lights
     distant_light = AssetBaseCfg(
@@ -105,6 +103,29 @@ class CarDriverSceneCfg(InteractiveSceneCfg):
     
     # Car articulation
     robot: ArticulationCfg = car_cfg.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    
+    # Objective cones
+    objective_cones = RigidObjectCfg(
+    prim_path="{ENV_REGEX_NS}/ObjectiveCone",
+    spawn=sim_utils.UsdFileCfg(
+        usd_path="C:/Users/mcpek/IsaacLab/Projects/first_attempt/Cone_object.usd",
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            rigid_body_enabled=True,
+            disable_gravity=True,
+        )
+    )
+    )
+    # Starting cones
+    starting_cones = RigidObjectCfg(
+    prim_path="{ENV_REGEX_NS}/StartingCone",
+    spawn=sim_utils.UsdFileCfg(
+        usd_path="C:/Users/mcpek/IsaacLab/Projects/first_attempt/Cone_object_black.usd",
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            rigid_body_enabled=True,
+            disable_gravity=True,
+        )
+    )
+    )
 
 ##
 # MDP settings
@@ -127,14 +148,13 @@ class ObservationsCfg:
         """Observations for policy group."""
 
         # observation terms (order preserved)
-        joint_vel = ObsTerm(func=mdp.joint_vel)           # velocity of each wheel
-        root_lin_vel_w = ObsTerm(func=mdp.root_lin_vel_w) # linear velocity of the car
-        root_ang_vel_w = ObsTerm(func=mdp.root_ang_vel_w) # angular velocity of the car
+        joint_vel = ObsTerm(func=mdp.joint_vel)             # velocity of each wheel
         root_pos = ObsTerm(func=mdp.root_pos_w)             # position of the car
-        root_quat_w = ObsTerm(func=mdp.root_quat_w)       # quaternion of the car (orientation)
-        base_angle_to_target = ObsTerm(func=mdp.base_angle_to_target, params={"target_pos": (0.0, 0.0, 0.0)})
-
-
+        objective_pos = ObsTerm(
+            func=mdp.root_pos_w,
+            params={"asset_cfg": SceneEntityCfg("objective_cones")}
+        )                                                   # objective position
+        root_quat_w = ObsTerm(func=mdp.root_quat_w)         # quaternion of the car (orientation)
 
         def __post_init__(self) -> None:
             self.enable_corruption = False
@@ -149,15 +169,18 @@ class EventCfg:
     """Configuration for events."""
 
     # reset
+    
+    # reset car position with random direction
     reset_car_position = EventTerm(
         func=mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            "pose_range": {"x": (-200, 200), "y": (-200, 200)}, 
+            "pose_range": {},
             "velocity_range": {"yaw": (-math.pi, math.pi)},
             },
     )
     
+    # reset car joints to have velocity 0
     reset_car_joints = EventTerm(
         func=mdp.reset_joints_by_offset,
         mode="reset",
@@ -166,37 +189,55 @@ class EventCfg:
             "velocity_range": (0, 0),
         },
     )
+    
+    # reset objective position
+    reset_objective_position = EventTerm(
+        func=mdp.reset_objective_position,
+        mode="reset",
+        params={
+            "objective_range": {"x": (-50, 50), "y": (-50, 50)},  # Relative to car spawn
+        },
+    )
+    
+    # reset scene when car reaches objective
+    reset_on_objective_reached = EventTerm(
+        func=mdp.reset_on_objective_reached,
+        mode="reset",
+        params={},
+    )
+    
 
 
 @configclass
 class RewardsCfg:
     """Reward terms for the MDP."""
-    
-    # (1) Reward for moving forward
-    progress = RewTerm(
-        func=mdp.progress_reward, 
-        weight=1.0, 
-        params={"target_pos": (0.0, 0.0, 0.0)}
+
+    # (1) Reward for being close to the goal
+    distance_to_objective = RewTerm(
+        func=mdp.distance_to_objective_reward,
+        weight=20.0,
     )
     # (2) Reward for moving fast
     speed = RewTerm(
         func=mdp.speed_reward, 
-        weight=0.1, 
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["FrontLeft", "FrontRight", "BackLeft", "BackRight"])}
+        weight=20.0,
     )
-    # (3) Constant time penalty
+    # (3) Penlaty for taking longer than needed
     time_penalty = RewTerm(
-        func=mdp.is_alive,
-        weight=-0.01,
+        func=mdp.time_penalty,
+        weight=-20.0,
     )
     # (4) Travelled distance penalty
     travel_penalty = RewTerm(
         func=mdp.travelled_distance_penalty,
-        weight=1.0,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["FrontLeft", "FrontRight", "BackLeft", "BackRight"])}
+        weight=-20.0,
     )
-    # (5) Accomplishement reward
-    terminating = RewTerm(func=mdp.is_terminated, weight=2.0)
+    # (5) Bonus for reaching the objective
+    objective_reached = RewTerm(
+        func=mdp.objective_reached_bonus,
+        weight=40.0,
+        params={"threshold": 1.0},
+    )
 
 
 @configclass
@@ -205,6 +246,12 @@ class TerminationsCfg:
 
     # (1) Time out
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
+    
+    # (2) Car got to objective
+    objective_reached = DoneTerm(
+        func=mdp.objective_reached,
+        params={"threshold": 1.0},
+    )
 
 
 ##
@@ -217,7 +264,7 @@ class CarDriverEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for the car driver environment."""
 
     # Scene settings
-    scene: CarDriverSceneCfg = CarDriverSceneCfg(num_envs=4096, env_spacing=10.0)
+    scene: CarDriverSceneCfg = CarDriverSceneCfg(num_envs=256, env_spacing=100.0)
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()

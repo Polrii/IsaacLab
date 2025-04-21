@@ -15,17 +15,116 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 
+def distance_to_objective_reward(
+    env: ManagerBasedRLEnv, 
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Reward for being closer to the goal."""
+    # Get the car positions
+    car_positions = env.scene[asset_cfg.name].data.root_pos_w[:, :2] # (x, y)
+    buffer_exists = hasattr(env, "previous_car_positions")
+
+    # Initialize the buffer for previous positions if it doesn't exist
+    if not buffer_exists:
+        env.previous_car_positions = torch.zeros_like(car_positions, device=env.device)
+
+    # Access the previous car positions
+    previous_positions = env.previous_car_positions
+    
+    """ This part is used to update the previous positions in the buffer, but as we use the buffer on another reward,
+    we will update them there
+    # Update the buffer with the current positions
+    env.previous_car_positions = car_positions.clone()"""
+    
+    # Get the objective positions
+    objective_positions = env.scene["objective_cones"].data.root_pos_w[:, :2] # (x, y)
+    
+    # Get the starting positions
+    starting_positions = env.scene["starting_cones"].data.root_pos_w[:, :2] # (x, y)
+    
+    # Compute distances
+    current_distances = torch.norm(car_positions - objective_positions, dim=1)
+    starting_distances = torch.norm(starting_positions - objective_positions, dim=1)
+    if not buffer_exists:
+        previous_distances = starting_distances
+    else:
+        previous_distances = torch.norm(previous_positions - objective_positions, dim=1)
+    
+    # Compute the rewards
+    rewards = (current_distances - previous_distances) / (starting_distances + 1e-8)
+    return rewards
+    
+
+
 def speed_reward(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """Reward for moving faster."""
-    # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
-    # compute the speed in the xy-plane
-    joint_vel = asset.data.joint_vel[:, asset_cfg.joint_ids]
-    # compute the reward
-    return torch.sum(torch.sqrt(torch.abs(joint_vel)))
+    
+    # Get the objective positions
+    objective_positions = env.scene["objective_cones"].data.root_pos_w[:, :2]  # (x, y)
+    # Get the starting positions
+    starting_positions = env.scene["starting_cones"].data.root_pos_w[:, :2]  # (x, y)
+    
+    # Constants
+    max_speed = 285  # rad/s
+    max_acceleration = 25  # rad/s^2
+    max_linear_vel = 94  # m/s
+    
+    # Calculate frames needed
+    acceleration_time = max_speed / max_acceleration
+    acceleration_distance = 0.5 * acceleration_time**2
+    
+    # Compute distances
+    distances = torch.norm(starting_positions - objective_positions, dim=1)  # Shape: [num_envs]
+    
+    # Use torch.where to handle the condition
+    time_needed = torch.where(
+        distances < acceleration_distance,
+        torch.sqrt(2 * distances / max_acceleration),
+        acceleration_time + ((distances - acceleration_distance) / max_acceleration)
+    )
+    
+    frames_needed = time_needed / env.step_dt
+
+    # Get the current linear velocity of the car
+    velocity = torch.norm(asset.data.root_lin_vel_b[:, :2], dim=1)  # xy-plane velocity
+    
+    # Calculate the speed reward
+    rewards = velocity / (max_linear_vel * frames_needed)
+    return rewards
+
+
+def time_penalty(
+    env: ManagerBasedRLEnv
+) -> torch.Tensor:
+    """Penalty for taking longer than needed."""
+    # Get the objective positions
+    objective_positions = env.scene["objective_cones"].data.root_pos_w[:, :2]  # (x, y)
+    # Get the starting positions
+    starting_positions = env.scene["starting_cones"].data.root_pos_w[:, :2]  # (x, y)
+
+    # Constants
+    max_speed = 285  # rad/s
+    max_acceleration = 25  # rad/s^2
+    
+    # Calculate frames needed
+    acceleration_time = max_speed / max_acceleration
+    acceleration_distance = 0.5 * acceleration_time**2
+    
+    # Compute distances
+    distances = torch.norm(starting_positions - objective_positions, dim=1)  # Shape: [num_envs]
+    
+    # Use torch.where to handle the condition
+    time_needed = torch.where(
+        distances < acceleration_distance,
+        torch.sqrt(2 * distances / max_acceleration),
+        acceleration_time + ((distances - acceleration_distance) / max_acceleration)
+    )
+    return env.step_dt / time_needed
+    
 
 
 def travelled_distance_penalty(
@@ -33,9 +132,50 @@ def travelled_distance_penalty(
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """Penalty for travelling a distance."""
-    asset: Articulation = env.scene[asset_cfg.name]
-    velocity = torch.norm(asset.data.root_lin_vel_b[:, :2], dim=1)  # xy-plane velocity
-    return (-torch.abs(velocity) * env.step_dt)
+    # Get the car positions
+    car_positions = env.scene[asset_cfg.name].data.root_pos_w[:, :2] # (x, y)
+    buffer_exists = hasattr(env, "previous_car_positions")
+
+    # Initialize the buffer for previous positions if it doesn't exist
+    if not buffer_exists:
+        env.previous_car_positions = torch.zeros_like(car_positions, device=env.device)
+
+    # Access the previous car positions
+    previous_positions = env.previous_car_positions
+    
+    # Update the buffer with the current positions
+    env.previous_car_positions = car_positions.clone()
+    
+    # Get the objective positions
+    objective_positions = env.scene["objective_cones"].data.root_pos_w[:, :2] # (x, y)
+    
+    # Get the starting positions
+    starting_positions = env.scene["starting_cones"].data.root_pos_w[:, :2] # (x, y)
+    
+    # Compute rewards
+    rewards = torch.norm(car_positions - previous_positions, dim=1) / torch.norm(objective_positions - starting_positions, dim=1)
+    return rewards
+
+
+def objective_reached_bonus(
+    env: ManagerBasedRLEnv,
+    threshold: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Reward for reaching the objective."""
+    car_positions = env.scene[asset_cfg.name].data.root_pos_w[:, :2] # (x, y)
+    objective_positions = env.scene["objective_cones"].data.root_pos_w[:, :2] # (x, y)
+    distances = torch.norm(car_positions - objective_positions, dim=1)
+    return (distances < threshold).float()
+
+
+
+
+
+
+
+
+
 
 
 
