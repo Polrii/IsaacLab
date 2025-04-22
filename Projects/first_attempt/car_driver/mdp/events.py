@@ -1,20 +1,9 @@
 from __future__ import annotations
 
 import torch
-from typing import TYPE_CHECKING, Literal
-
-
-import isaaclab.sim as sim_utils
-import isaaclab.utils.math as math_utils
-from isaaclab.actuators import ImplicitActuator
-from isaaclab.assets import Articulation, DeformableObject, RigidObject
-from isaaclab.managers import EventTermCfg, ManagerTermBase, SceneEntityCfg
-from isaaclab.terrains import TerrainImporter
-
+from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
-    
-
 
 
 def reset_objective_position(
@@ -43,11 +32,3 @@ def reset_objective_position(
 
     # Write poses
     env.scene["objective_cones"].write_root_pose_to_sim(poses)
-
-        
-def reset_on_objective_reached(env, params):
-    """Reset the scene if any car reaches its objective."""
-    car_positions = env.scene["robot"].data.root_pos_w[:, :2]
-    distances = torch.norm(car_positions - env.objective_positions, dim=1)
-    if torch.any(distances < 1.0):  # Threshold for reaching the objective
-        env.reset()

@@ -1,21 +1,3 @@
-"""
-Important files to look at:
-- C:/Users/mcpek/IsaacLab/scripts/reinforcement_learning/rl_games/train.py
-- C:/Users/mcpek/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/utils/parse_cfg.py
-- C:/Users/mcpek/IsaacLab/source/isaaclab_tasks/docs/README.md
-- C:/Users/mcpek/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/classic/cartpole/cartpole_env_cfg.py
-
-Look at the example from cartpole:
-- C:/Users/mcpek/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/classic/cartpole"
-"""
-
-
-
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
 """Script to train RL agent with RL-Games."""
 
 """Launch Isaac Sim Simulator first."""

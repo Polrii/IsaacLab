@@ -2,15 +2,13 @@ from __future__ import annotations
 
 import torch
 from typing import TYPE_CHECKING
-
-from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.sensors import ContactSensor
-
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
-    from isaaclab.managers.command_manager import CommandTerm
 
+import sys
+sys.path.append("C:/Users/mcpek/IsaacLab/Projects/first_attempt")
+import car_driver.mdp as mdp
 
 
 
@@ -28,5 +26,11 @@ def objective_reached(
     
     # compute distance to objective
     distances = torch.norm(car_positions - objective_positions, dim=1)
+    mask = distances < threshold
+    if mask.any():
+        # Apply the objective reached bonus
+        env.reward_buf += mdp.objective_reached_bonus(env, threshold=threshold)
+        
+        print(f"[Termination]: Terminated because objective was reached! Distances below threshold: {distances[mask]}")
     
-    return distances < threshold
+    return mask

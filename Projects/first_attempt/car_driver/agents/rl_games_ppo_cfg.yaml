@@ -61,15 +61,15 @@ params:
     kl_threshold: 0.008
     score_to_win: 35
     max_epochs: 10000
-    save_best_after: 50
-    save_frequency: 10
+    save_best_after: 100
+    save_frequency: 25
     grad_norm: 1.0
     entropy_coef: 0.0
     truncate_grads: True
     e_clip: 0.2
     horizon_length: 16
-    batch_size: 1024
-    minibatch_size: 128
+    batch_size: 256
+    minibatch_size: 32
     mini_epochs: 4
     critic_coef: 2
     clip_value: True

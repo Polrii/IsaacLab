@@ -199,12 +199,7 @@ class EventCfg:
         },
     )
     
-    # reset scene when car reaches objective
-    reset_on_objective_reached = EventTerm(
-        func=mdp.reset_on_objective_reached,
-        mode="reset",
-        params={},
-    )
+    # reset previous positions
     
 
 
@@ -232,12 +227,8 @@ class RewardsCfg:
         func=mdp.travelled_distance_penalty,
         weight=-20.0,
     )
-    # (5) Bonus for reaching the objective
-    objective_reached = RewTerm(
-        func=mdp.objective_reached_bonus,
-        weight=40.0,
-        params={"threshold": 1.0},
-    )
+    # (5) Bonus for reaching the objective (This is handled by the termination objective_reached)
+
 
 
 @configclass

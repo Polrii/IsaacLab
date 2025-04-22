@@ -166,7 +166,11 @@ def objective_reached_bonus(
     car_positions = env.scene[asset_cfg.name].data.root_pos_w[:, :2] # (x, y)
     objective_positions = env.scene["objective_cones"].data.root_pos_w[:, :2] # (x, y)
     distances = torch.norm(car_positions - objective_positions, dim=1)
-    return (distances < threshold).float()
+    mask = distances < threshold
+    if mask.any():
+        print(f"[Objective]: Objective reached! Distances below threshold: {distances[mask]}")
+    
+    return mask.float() * 40.0
 
 
 
