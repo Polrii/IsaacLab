@@ -41,7 +41,7 @@ def plot_graph(x, y):
     plt.show()
 
 if __name__ == '__main__':
-    folder = r"C:\Users\mcpek\IsaacLab\logs\rl_games\car_driver\2025-04-22_08-05-30\nn"
+    folder = r"C:\Users\mcpek\IsaacLab\logs\rl_games\car_driver\2025-04-22_18-13-08\nn"
     x_vals, y_vals = process_folder(folder)
     if x_vals and y_vals:
         print_min_max(x_vals, y_vals)

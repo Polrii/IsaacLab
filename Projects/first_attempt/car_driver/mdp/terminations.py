@@ -27,9 +27,10 @@ def objective_reached(
     # compute distance to objective
     distances = torch.norm(car_positions - objective_positions, dim=1)
     mask = distances < threshold
+    
     if mask.any():
         # Apply the objective reached bonus
-        env.reward_buf += mdp.objective_reached_bonus(env, threshold=threshold)
+        env.reward_buf[mask] += (mdp.objective_reached_bonus(env, threshold=threshold)[mask]*1000000)
         
         print(f"[Termination]: Terminated because objective was reached! Distances below threshold: {distances[mask]}")
     

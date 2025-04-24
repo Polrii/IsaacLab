@@ -163,14 +163,19 @@ def objective_reached_bonus(
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """Reward for reaching the objective."""
+    # Get the car positions
     car_positions = env.scene[asset_cfg.name].data.root_pos_w[:, :2] # (x, y)
+    # Get the objective positions
     objective_positions = env.scene["objective_cones"].data.root_pos_w[:, :2] # (x, y)
+
+    # Compute distances
     distances = torch.norm(car_positions - objective_positions, dim=1)
     mask = distances < threshold
+    
     if mask.any():
         print(f"[Objective]: Objective reached! Distances below threshold: {distances[mask]}")
     
-    return mask.float() * 40.0
+    return mask.float()
 
 
 

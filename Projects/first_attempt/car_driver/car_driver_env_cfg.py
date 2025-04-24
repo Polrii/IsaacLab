@@ -169,15 +169,15 @@ class EventCfg:
     """Configuration for events."""
 
     # reset
-    
-    # reset car position with random direction
-    reset_car_position = EventTerm(
-        func=mdp.reset_root_state_uniform,
+    # reset car position with random direction and reset starting and previous positions
+    reset_positions = EventTerm(
+        func=mdp.reset_car_pos_and_other_positions,
         mode="reset",
         params={
-            "pose_range": {},
-            "velocity_range": {"yaw": (-math.pi, math.pi)},
-            },
+            "pose_range": {"x": (-50, 50), "y": (-50, 50), "yaw": (-math.pi, math.pi)},  # Position relative to center of env and random direction
+            "asset_cfg": SceneEntityCfg("robot"),
+            "starting_pos_asset_cfg": SceneEntityCfg("starting_cones"),
+        },
     )
     
     # reset car joints to have velocity 0
@@ -195,11 +195,9 @@ class EventCfg:
         func=mdp.reset_objective_position,
         mode="reset",
         params={
-            "objective_range": {"x": (-50, 50), "y": (-50, 50)},  # Relative to car spawn
+            "position_range": {"x": (-50, 50), "y": (-50, 50)},  # Relative to car spawn
         },
     )
-    
-    # reset previous positions
     
 
 
@@ -228,7 +226,11 @@ class RewardsCfg:
         weight=-20.0,
     )
     # (5) Bonus for reaching the objective (This is handled by the termination objective_reached)
-
+    objective_reached = RewTerm(
+        func=mdp.objective_reached_bonus,
+        weight=1000.0,
+        params={"threshold": 1.0},
+    )
 
 
 @configclass
